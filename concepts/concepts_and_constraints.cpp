@@ -352,3 +352,17 @@ TEST_CASE("has <=> as noexcept")
     check_spaceship_noexcept(SpaceshipDefault{42, "ft"}, SpaceshipDefault{42, "ft"});
     check_spaceship_noexcept(SpaceshipCustom{ {42, "ft"}, 3.33 },SpaceshipCustom{ {42, "ft"}, 3.33 });
 }
+
+int foobar(int arg)
+{
+    return arg * 42;
+}
+
+TEST_CASE("std concepts")
+{
+    static_assert(std::same_as<int, int>);
+    static_assert(not std::same_as<int, const int>);
+    static_assert(std::convertible_to<uint32_t, uint64_t>);
+    static_assert(std::default_initializable<SpaceshipDefault>);
+    static_assert(std::invocable<decltype(foobar), int>);
+}
