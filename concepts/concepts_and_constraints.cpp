@@ -25,6 +25,12 @@ struct IsPointer<T*> : std::true_type
 template <typename T>
 constexpr inline bool IsPointer_v = IsPointer<T>::value;
 
+void print_ptr(auto ptr)
+    requires IsPointer_v<decltype(ptr)>
+{
+    std::cout << "Pointer: " << *ptr << "\n";
+}
+
 TEST_CASE("type traits")
 {
     using T1 = int;
