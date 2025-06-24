@@ -25,7 +25,10 @@ void add_to(auto& container, auto&& item)
     //undefined(); // phase 1
     //container.undefined(item); // phase 2
 
-    container.push_back(std::forward<decltype(item)>(item));
+    if constexpr (requires { container.push_back(std::forward<decltype(item)>(item)); })
+        container.push_back(std::forward<decltype(item)>(item));
+    else
+        container.insert(std::forward<decltype(item)>(item));
 }
 
 namespace AlternativeTake
