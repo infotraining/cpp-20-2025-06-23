@@ -4,6 +4,8 @@
 #include <ranges>
 #include <string>
 #include <vector>
+#include <map>
+#include <tuple>
 
 using namespace std::literals;
 
@@ -103,15 +105,57 @@ TEST_CASE("views")
 
     SECTION("counted")
     {        
+        auto tail = std::views::counted(data.rbegin(), 3);
+
+        helpers::print(tail, "tail");
     }
 
     SECTION("iota")
     {
+        auto iota_v = std::views::iota(1, 10);
+
+        helpers::print(iota_v, "iota_v");
+    }
+
+    SECTION("single")
+    {
+        for(const auto& item : std::views::single(42))
+        {
+            std::cout << item << " ";
+        }
+        std::cout << "\n";
     }
 
     SECTION("pipes |")
     {
+        auto evens = data | std::views::filter([](int x) { return x % 2 == 0; });
+
+        for(const auto& item : evens)
+        {
+            std::cout << "even: " << item << "\n";
+        }
+
+        auto data_gathered = 
+            std::views::iota(1)
+                | std::views::take(10)
+                | std::views::transform([](int n) { return n * n; })
+                | std::views::filter([](int x) { return x % 2 == 0; })
+                | std::views::reverse
+                | std::views::common;
+
+        std::vector<int> data_vec(data_gathered.begin(), data_gathered.end());
+
+        helpers::print(data_gathered, "data_gathered");
     }
+}
+
+template <std::ranges::range T>
+    requires requires(std::ranges::range_value_t<T> obj, std::ostream& out) {  out << obj; }
+void classic_print(T&& items)
+{
+    for(const auto& item : items)
+        std::cout << item << " ";
+    std::cout << "\n"; 
 }
 
 TEST_CASE("views - reference semantics")
@@ -119,9 +163,34 @@ TEST_CASE("views - reference semantics")
     std::vector data = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
 
     auto evens_view = data | std::views::filter([](int i) { return i % 2 == 0; });
-    helpers::print(data, "data");
-
-    // TODO - set all even numbers to 0 using evens_view
+    classic_print(evens_view);
 
     helpers::print(data, "data");
+
+    for(auto& item : evens_view)
+    {
+        item = 0;
+    }
+
+    helpers::print(data, "data");
+}
+
+TEST_CASE("maps & ranges")
+{
+    std::map<int, std::string> dict = { {1, "one"}, {2, "two"} };
+
+    helpers::print(dict | std::views::keys, "keys");
+    helpers::print(dict | std::views::values, "values");
+
+    auto keys_of_dict = dict | std::views::elements<0>;
+    helpers::print(keys_of_dict, "keys_of_dict");
+}
+
+TEST_CASE("split")
+{
+    std::string text = "abc def ghi";
+
+    auto tokens_view = std::views::split(text, " ") | std::views::transform([](auto token) { return std::string_view(token); });
+
+    helpers::print(tokens_view, "tokens");
 }
