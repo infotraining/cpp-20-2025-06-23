@@ -1,8 +1,8 @@
 #include <catch2/catch_test_macros.hpp>
 #include <iostream>
+#include <set>
 #include <string>
 #include <vector>
-#include <set>
 
 using namespace std::literals;
 
@@ -22,8 +22,8 @@ namespace Explain
 
 void add_to(auto& container, auto&& item)
 {
-    //undefined(); // phase 1
-    //container.undefined(item); // phase 2
+    // undefined(); // phase 1
+    // container.undefined(item); // phase 2
 
     if constexpr (requires { container.push_back(std::forward<decltype(item)>(item)); })
         container.push_back(std::forward<decltype(item)>(item));
@@ -38,7 +38,7 @@ namespace AlternativeTake
     {
         container.push_back(std::forward<TItem>(item));
     }
-}
+} // namespace AlternativeTake
 
 namespace Explain
 {
@@ -76,8 +76,9 @@ struct Tax
 {
     double value;
 
-    constexpr Tax(double v) : value{v}
-    {}
+    constexpr Tax(double v)
+        : value{v}
+    { }
 
     double get_value() const
     {
@@ -105,7 +106,7 @@ struct Str
 {
     char text[N];
 
-    constexpr Str(const char(&str)[N]) noexcept
+    constexpr Str(const char (&str)[N]) noexcept
     {
         std::copy(str, str + N, text);
     }
@@ -147,9 +148,73 @@ constexpr std::floating_point auto calc_gross_price_with_lambda(std::floating_po
 
 TEST_CASE("NTTP - lambda")
 {
-    constexpr auto get_vat_pl = [] { return 0.23; };
-    constexpr auto get_vat_ger = [] { return 0.19; };
+    auto get_vat_pl = [] {
+        return 0.23;
+    };
+    
+    constexpr auto get_vat_ger = [] {
+        return 0.19;
+    };
 
     REQUIRE(calc_gross_price_with_lambda<get_vat_pl>(100.0) == 123.0);
     REQUIRE(calc_gross_price_with_lambda<get_vat_ger>(100.0) == 119.0);
+}
+
+TEST_CASE("lambdas in C++20")
+{
+    std::vector<int> vec;
+
+    SECTION("before C++20")
+    {
+        auto add_to = [](auto& vec, auto&& item) {
+            vec.push_back(std::forward<decltype(item)>(item));
+        };
+
+        add_to(vec, 2);
+    }
+
+    SECTION("since C++20")
+    {
+        auto add_to = []<typename T, typename TItem>(std::vector<T>& vec, TItem&& item) {
+            vec.push_back(std::forward<TItem>(item));
+        };
+
+        add_to(vec, 2);
+    }
+}
+
+TEST_CASE("lambda & default constructor")
+{
+    auto cmp_by_values = [](const auto& a, const auto& b) { 
+        return *a < *b;
+    };
+
+    decltype(cmp_by_values) other_cmp; // OK - since C++20 - lambda with [] is default_initializable
+
+    std::set<std::unique_ptr<int>, decltype(cmp_by_values)> values;
+
+    values.insert(std::make_unique<int>(42));
+    values.insert(std::make_unique<int>(2));
+    values.insert(std::make_unique<int>(32));
+    values.insert(std::make_unique<int>(665));
+    values.insert(std::make_unique<int>(55));
+
+    for(const auto& v : values)
+    {
+        std::cout << *v << "\n";
+    }
+}
+
+auto create_caller(auto f, auto... args)
+{
+   return [f, ...args = std::move(args)]() -> decltype(auto) {
+        return f(args...);
+   }; 
+}
+
+TEST_CASE("lambda - capturing argument pack")
+{
+    auto f = create_caller(std::plus<int>{}, 3, 5);
+
+    REQUIRE(f() == 8);
 }
