@@ -1,26 +1,26 @@
+#include <array>
 #include <catch2/catch_test_macros.hpp>
 #include <iostream>
-#include <vector>
-#include <string>
-#include <span>
-#include <numbers>
-#include <array>
 #include <mdspan>
+#include <numbers>
 #include <print>
+#include <span>
+#include <string>
+#include <vector>
 
 using namespace std::literals;
 
 void print(std::span<const int> data, std::string_view desc)
 {
     std::cout << desc << ": [ ";
-    for(const auto& item : data)
+    for (const auto& item : data)
         std::cout << item << " ";
     std::cout << "]\n";
 }
 
 void zero(std::span<int> data, int default_value = 0)
 {
-    for(auto& item : data)
+    for (auto& item : data)
         item = default_value;
 }
 
@@ -30,7 +30,7 @@ TEST_CASE("std::span")
 
     SECTION("fixed extent")
     {
-        std::span<int, 5> spn_1{vec.begin(), 5}; 
+        std::span<int, 5> spn_1{vec.begin(), 5};
         print(spn_1, "spn_1");
     }
 
@@ -79,7 +79,7 @@ TEST_CASE("why span")
     int tab[10] = {1, 2, 3, 4};
     print(tab, "tab");
 
-    int* dynamic_tab = new int[10] { 1, 2, 3, 4 };
+    int* dynamic_tab = new int[10]{1, 2, 3, 4};
     print(std::span{dynamic_tab, 10}, "dynamic_tab");
 
     std::vector<int> vec{1, 2, 3, 4};
@@ -122,17 +122,18 @@ TEST_CASE("beware dangling pointers")
 TEST_CASE("mdspan")
 {
     std::vector v{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
- 
+
     // View data as contiguous memory representing 2 rows of 6 ints each
     auto ms2 = std::mdspan(v.data(), 2, 6);
+    
     // View the same data as a 3D array 2 x 3 x 2
     auto ms3 = std::mdspan(v.data(), 2, 3, 2);
- 
+
     // Write data using 2D view
     for (std::size_t i = 0; i != ms2.extent(0); i++)
         for (std::size_t j = 0; j != ms2.extent(1); j++)
             ms2[i, j] = i * 1000 + j;
- 
+
     // Read back using 3D view
     for (std::size_t i = 0; i != ms3.extent(0); i++)
     {

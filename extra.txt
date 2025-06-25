@@ -1,0 +1,149 @@
+template <typename T>
+struct IsTupleOfReferences : std::false_type
+{};
+
+template <typename... Ts>
+struct IsTupleOfReferences<std::tuple<Ts...>>
+{
+    constexpr static bool value = (... && std::is_lvalue_reference_v<Ts>);
+};
+
+template <typename T>
+inline constexpr bool IsTupleOfReferences_v = IsTupleOfReferences<T>::value;    
+
+static_assert(not IsTupleOfReferences_v<std::tuple<int, double>>);
+static_assert(IsTupleOfReferences_v<std::tuple<int&, double&>>);
+
+template <typename T>
+concept TupleOfRefences = IsTupleOfReferences_v<T>;
+
+template <typename T>
+concept HasTied = requires(T obj) {
+    { obj.tied() } -> TupleOfRefences;
+};
+
+struct Person
+{
+    int id;
+    std::string name;
+    double height;
+
+    auto tied() const
+    {
+        return std::tie(id, name, height);
+    }
+};
+
+static_assert(HasTied<Person>);
+
+template <typename T, typename... Ts>
+concept OneOf = (std::same_as<T, Ts> || ...);
+
+static_assert(OneOf<int, bool, double, int>);
+static_assert(OneOf<int, int, double>);
+static_assert(not OneOf<int, short, double, char>);
+
+template <typename, template <typename...> class>
+constexpr bool IsInstanceOf_v = false;
+
+template <typename... As, template <typename...> class T>
+constexpr bool IsInstanceOf_v<T<As...>, T> = true;
+
+template <typename A, template <typename...> class T>
+concept IsInstanceOf = IsInstanceOf_v<A, T>;
+
+static_assert(IsInstanceOf<std::tuple<int>, std::tuple>);
+
+template <typename T>
+concept AwaitSuspendResult = OneOf<T, void, bool> || IsInstanceOf<T, std::coroutine_handle>;
+
+static_assert(AwaitSuspendResult<void>);
+static_assert(AwaitSuspendResult<bool>);
+static_assert(AwaitSuspendResult<std::coroutine_handle<void>>);
+static_assert(not AwaitSuspendResult<int>);
+
+template <typename T, typename... Promise>
+concept Awaiter = requires(T obj, std::coroutine_handle<Promise...> coro_hndl) {
+    { obj.await_ready() } -> std::convertible_to<bool>;
+    { obj.await_suspend(coro_hndl) } -> AwaitSuspendResult;
+    obj.await_resume();
+};
+
+static_assert(Awaiter<std::suspend_always>);
+static_assert(Awaiter<std::suspend_never>);
+
+inline auto sync_out(std::ostream& out = std::cout)
+{
+    return std::osyncstream{out};
+}
+
+class FireAndForget
+{
+public:
+    class promise_type
+    {
+    public:
+        FireAndForget get_return_object()
+        {
+            return {};
+        }
+
+        auto initial_suspend()
+        {
+            sync_out() << "...Initial suspension point...\n";
+            return std::suspend_never{};
+        }
+
+        auto final_suspend() noexcept
+        {
+            sync_out() << "...Final suspension point...\n";
+            return std::suspend_never{};
+        }
+
+        void return_void()
+        {}
+
+        void unhandled_exception()
+        {
+            std::terminate();
+        }
+    };
+};
+
+struct ResumeOnNewThreadAwaiter : std::suspend_always
+{
+    void await_suspend(std::coroutine_handle<> coro_hndl)
+    {
+        std::thread([coro_hndl] { coro_hndl.resume(); }).detach();
+    }
+
+    std::thread::id await_resume() const noexcept
+    {
+        return std::this_thread::get_id();
+    }
+};
+
+static_assert(Awaiter<ResumeOnNewThreadAwaiter>);
+
+auto resume_on_new_thread()
+{
+    return ResumeOnNewThreadAwaiter{};
+}
+
+FireAndForget fire_and_forget_test()
+{
+    std::cout << "Start on thread#" << std::this_thread::get_id() << "..." << std::endl;
+
+    co_await resume_on_new_thread();
+
+    std::cout << "Continue on thread#" << std::this_thread::get_id() << "..." << std::endl;
+
+    std::thread::id thd_id = co_await resume_on_new_thread();
+
+    std::cout << "Finish on thread#" << std::this_thread::get_id() << "..." << std::endl;
+}
+
+TEST_CASE("fire and forget")
+{
+    auto fire_on_threads = fire_and_forget_test();
+}
