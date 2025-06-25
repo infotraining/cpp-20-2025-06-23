@@ -7,6 +7,7 @@
 #include <span>
 #include <string>
 #include <vector>
+#include <format>
 
 using namespace std::literals;
 
@@ -144,5 +145,56 @@ TEST_CASE("mdspan")
                 std::print("{} ", ms3[i, j, k]);
             std::println("");
         }
+    }
+}
+
+static std::string txt = "Hello";
+
+TEST_CASE("std::format - basics")
+{
+    std::cout << std::format("{} has {} chars\n", txt, txt.size());
+
+    std::cout << std::format("Price:{:_>8.2f} PLN\n", 665.9);
+
+    std::cout << std::format("'{0}' has value {0:02X} {0:+4d} {0:03o}\n", '?');
+    std::cout << std::format("'{0}' has value {0:02X} {0:+4d} {0:03o}\n", 'a');
+    std::cout << std::format("'{0}' has value {0:02X} {0:+4d} {0:03o}\n", 'A');
+}
+
+TEST_CASE("std::format_to_n - better performance")
+{
+    SECTION("add null at the end")
+    {
+        char buffer[128];
+
+        auto result = std::format_to_n(buffer, std::size(buffer) - 1, "String '{}' has {} chars\n", txt, txt.size());
+        *(result.out) = '\0'; // add null at the end
+
+        std::cout << buffer;
+    }
+
+    SECTION("use array that is zeroed")
+    {
+        std::array<char, 128> buffer{};
+
+        auto result = std::format_to_n(buffer.data(), buffer.size() - 1, "String '{}' has {} chars\n", txt, txt.size());
+
+        std::cout << buffer.data();
+    }
+}
+
+TEST_CASE("std::format_to - unlimited number of chars")
+{
+    SECTION("works with streams")
+    {
+        std::format_to(std::ostreambuf_iterator<char>{std::cout}, "{} has value {}\n", "Pi", std::numbers::pi);
+    }
+
+    SECTION("works with back inserters")
+    {
+        std::string str;
+        std::format_to(std::back_inserter(str), "{} has value {}\n", "Pi", std::numbers::pi);
+
+        std::cout << str;
     }
 }
