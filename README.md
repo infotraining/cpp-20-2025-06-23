@@ -1,5 +1,11 @@
 # Szkolenie - C++20 #
 
+## Książki
+
+* https://www.josuttis.com/
+* https://andreasfertig.com/books/programming-with-cpp20/
+* https://learning.oreilly.com/library/view/asynchronous-programming-with/9781835884249/
+
 ## Konfiguracja środowiska
 
 Proszę wybrać jedną z poniższych opcji:
